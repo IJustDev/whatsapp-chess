@@ -5,19 +5,17 @@ import { WAConnection, MessageType } from "@adiwajshing/baileys";
 export async function handleMessage(conn: WAConnection, m: any) {
   const messageType = Object.keys(m.message)[0];
   const remoteJid = m.key.remoteJid;
-  if (messageType === MessageType.audio) {
-    const response = await conn.sendMessage(
-      remoteJid,
-      "Die scheiße höre ich mir sicher nicht an.",
-      MessageType.text
-    );
-    console.log(response.key.id);
-  } else if (
+  if (
     messageType === MessageType.text &&
     m.message.conversation.startsWith("#")
   ) {
     const command = m.message.conversation.toLowerCase();
-    const response = await handleCommand(command, conn, m.key.remoteJid);
+    const response = await handleCommand(
+      command,
+      conn,
+      m.key.remoteJid,
+      m.key.fromMe
+    );
     if (response !== "") {
       await conn.sendMessage(remoteJid, response, MessageType.text);
     }
