@@ -27,6 +27,9 @@ After that the bot is active and you can use
 #status - display the current board and stats
 #help - display this help prompt.
 ```
+## Demo
+
+<img src="https://pbs.twimg.com/media/E9dXRGAWYAY93e8?format=jpg&name=large" width="350px"/>
 
 ## But why?
 WHO WOULDN'T LOVE TO PLAY CHESS ON HIS PHONE? But seriously, it was an
