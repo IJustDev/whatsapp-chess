@@ -48,8 +48,6 @@ async function start() {
   const conn = await setUp();
 
   conn.on("chat-update", async (chat) => {
-    if (chat.presences) {
-    }
     if (!chat.hasNewMessage) {
       if (chat.messages) {
         console.log("updated message: ", chat.messages.first);

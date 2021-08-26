@@ -1,9 +1,32 @@
+import { createCanvas, loadImage } from "canvas";
 import * as Chess from "chess-base";
 import * as cig from "chess-image-generator";
+import * as path from "path";
 import { WAConnection, MessageType } from "@adiwajshing/baileys";
+
+import * as Frame from "canvas-to-buffer";
 
 import { games, saveGames } from "./gameHandler";
 import sharp = require("sharp");
+
+const { cols, black, filePaths } = {
+  cols: "abcdefgh",
+  black: "pbnrqk",
+  filePaths: {
+    wp: "WhitePawn",
+    bp: "BlackPawn",
+    wb: "WhiteBishop",
+    bb: "BlackBishop",
+    wn: "WhiteKnight",
+    bn: "BlackKnight",
+    wr: "WhiteRook",
+    br: "BlackRook",
+    wq: "WhiteQueen",
+    bq: "BlackQueen",
+    wk: "WhiteKing",
+    bk: "BlackKing",
+  },
+};
 
 const imageGenerator = new cig({
   size: 1024,
@@ -13,6 +36,93 @@ const imageGenerator = new cig({
   flipped: true,
 });
 
+const generateSVG = async (imgGen: cig) => {
+  if (!imgGen.ready) {
+    throw new Error("Load a position first");
+  }
+
+  const labelFieldSize = 64;
+
+  const canvas = createCanvas(
+    imgGen.size + labelFieldSize,
+    imgGen.size + labelFieldSize
+  );
+  const ctx = canvas.getContext("2d");
+
+  ctx.beginPath();
+  ctx.rect(
+    0,
+    0,
+    imgGen.size + labelFieldSize * 2,
+    imgGen.size + labelFieldSize * 2
+  );
+  ctx.fillStyle = imgGen.light;
+  ctx.fill();
+
+  for (let i = 0; i < 8; i += 1) {
+    for (let j = 0; j < 8; j += 1) {
+      if ((i + j) % 2 === 0) {
+        ctx.beginPath();
+        ctx.rect(
+          (imgGen.size / 8) * (7 - j + 1) - imgGen.size / 8 + labelFieldSize,
+          (imgGen.size / 8) * i,
+          imgGen.size / 8,
+          imgGen.size / 8
+        );
+        ctx.fillStyle = imgGen.dark;
+        ctx.fill();
+      }
+
+      const piece = imgGen.chess.get(cols[7 - j] + (7 - i + 1));
+      if (
+        piece &&
+        piece.type !== "" &&
+        black.includes(piece.type.toLowerCase())
+      ) {
+        const image = `resources/${imgGen.style}/${
+          filePaths[`${piece.color}${piece.type}`]
+        }.png`;
+        const imageFile = await loadImage(
+          path.join(
+            __dirname,
+            "..",
+            "node_modules",
+            "chess-image-generator",
+            "src",
+            image
+          )
+        );
+
+        await ctx.drawImage(
+          imageFile,
+          (imgGen.size / 8) * (7 - j + 1) - imgGen.size / 8 + labelFieldSize,
+          (imgGen.size / 8) * i,
+          imgGen.size / 8,
+          imgGen.size / 8
+        );
+      }
+    }
+  }
+
+  ctx.font = "40px serif bold";
+  ctx.fillStyle = "#000";
+  for (let i = 0; i < 8; i++) {
+    ctx.fillText(
+      (8 - i).toString(),
+      labelFieldSize / 2 - labelFieldSize * 0.25,
+      2 * i * labelFieldSize + labelFieldSize * 1.25
+    );
+  }
+  for (let i = 0; i < 8; i++) {
+    ctx.fillText(
+      cols[i],
+      2 * i * labelFieldSize + labelFieldSize * 1.75,
+      imgGen.size + labelFieldSize / 2 + 16
+    );
+  }
+  return { canvas, ctx };
+};
+
 async function sendChessGame(
   conn: WAConnection,
   remoteJid: string,
@@ -20,7 +130,8 @@ async function sendChessGame(
 ) {
   // Get the file name
   await imageGenerator.loadFEN(fen);
-  const buffer = await imageGenerator.generateBuffer();
+  const { canvas, ctx } = await generateSVG(imageGenerator);
+  const buffer = new Frame(canvas, { image: { types: ["png"] } }).toBuffer();
   const jpegBuffer = await sharp(buffer).jpeg().toBuffer();
   try {
     await conn.sendMessage(remoteJid, jpegBuffer, MessageType.image, {
